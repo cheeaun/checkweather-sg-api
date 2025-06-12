@@ -2,15 +2,13 @@
   "name": "checkweather-sg-api",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "vercel dev",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "next": "15.3.3"
+    "nearest-color": "^0.4.4",
+    "pngjs": "^7.0.0"
   }
 }

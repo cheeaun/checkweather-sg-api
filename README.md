@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CheckWeather SG API
 
-## Getting Started
+Singapore weather API providing real-time observations and radar rain data from government sources.
 
-First, run the development server:
+This is a rewrite of [rain-geojson-sg](https://github.com/cheeaun/rain-geojson-sg).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## API Endpoints
+
+### `GET /v1/observations`
+Returns real-time weather data from stations across Singapore.
+
+**Response:**
+```json
+{
+  "station_id": {
+    "lng": 103.123,
+    "lat": 1.234,
+    "temp_celcius": 28.5,
+    "relative_humidity": 85,
+    "rain_mm": 0.2,
+    "wind_direction": 180,
+    "wind_speed": 5.2
+  }
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### `GET /v1/rainarea`
+Returns processed radar images with rain coverage data and ASCII visualization.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+**Query Parameters:**
+- `dt` (optional) - Datetime in `YYYYMMDDHHMM` format (Singapore timezone), e.g. `202412151430` for Dec 15, 2024 at 2:30 PM SGT
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Response:**
+```json
+{
+  "id": "202412151200",
+  "dt": 202412151200,
+  "coverage_percentage": {
+    "all": 15.25,
+    "sg": 12.80
+  },
+  "width": 480,
+  "height": 480,
+  "radar": "ASCII representation..."
+}
+```
 
-## Learn More
+## Development
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm start    # Vercel dev server at localhost:3000
+npm test     # Run test suite
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Copyright/License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Rain area radar images © [Meteorological Service Singapore](http://www.weather.gov.sg/) © [National Environment Agency](http://www.nea.gov.sg/)
+- [Singapore region boundary](https://data.gov.sg/dataset/master-plan-2014-region-boundary-web), under [Singapore Open Data License](https://data.gov.sg/open-data-licence)
+- Code under [MIT](https://cheeaun.mit-license.org/).

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/v1/rainarea",
+      "destination": "/api/rainarea"
+    },
+    {
+      "source": "/v1/observations",
+      "destination": "/api/observations"
+    }
+  ]
+}
