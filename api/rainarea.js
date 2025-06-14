@@ -135,8 +135,7 @@ const fetchRadar = (dt, opts = {}) =>
       const { body, headers } = response;
 
       if (!headers['content-type'].includes('image/png')) {
-        const e = new Error('Radar image is not a PNG image.');
-        console.error(e);
+        console.log('⚠️ Radar image is not a PNG image.');
         reject(e);
         return;
       }
@@ -160,7 +159,7 @@ const fetchRadar = (dt, opts = {}) =>
       if (e.status === 404 || e.message.includes('404')) {
         reject(new Error('Page not found'));
       } else {
-        console.error({
+        console.log('⚠️', {
           message: e.message,
           code: e.code,
         });
