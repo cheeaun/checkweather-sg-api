@@ -335,13 +335,18 @@ export async function GET(request) {
             } catch (e) {}
           }
         }
-        if (!output) {
+
+        if (!output && img) {
           const rainareas = convertImageToData(img);
           output = cachedOutput[dt] = {
             id: '' + dt,
             dt,
             ...rainareas,
           };
+        }
+
+        if (!output) {
+          throw new Error(`Failed to fetch radar data for ${dt}`);
         }
       }
 
