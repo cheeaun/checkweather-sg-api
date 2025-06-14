@@ -117,6 +117,11 @@ const fetchRadar = (dt, opts = {}) =>
           retryLimit
         );
       } catch (error) {
+        // Don't try alternative URL for 302 redirects (image not ready)
+        if (error.status === 302 && error.isRetryableStatus) {
+          throw error;
+        }
+
         // Try alternative URL if first one fails
         flipAPIURL();
         url = apiURL(dt);
