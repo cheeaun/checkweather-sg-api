@@ -60,7 +60,11 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
         await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
         return fetchWithRetry(url, options, retries - 1);
       }
-      throw new Error(`HTTP error: ${response.status}`);
+      // Create error with additional info about whether this was a retryable status
+      const error = new Error(`HTTP error: ${response.status}`);
+      error.status = response.status;
+      error.isRetryableStatus = retryStatusCodes.includes(response.status);
+      throw error;
     }
 
     const buffer = await response.arrayBuffer();
@@ -158,6 +162,9 @@ const fetchRadar = (dt, opts = {}) =>
 
       if (e.status === 404 || e.message.includes('404')) {
         reject(new Error('Page not found'));
+      } else if (e.status === 302 && e.isRetryableStatus) {
+        // 302 after exhausting retries means image is not ready, treat as definitive failure
+        reject(new Error('Image not ready (redirect after retries)'));
       } else {
         console.log('⚠️', {
           message: e.message,
