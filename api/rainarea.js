@@ -94,7 +94,8 @@ const fetchRadar = (dt, opts = {}) =>
     console.log(`Fetch: ${dt}`);
     let url = apiURL(dt);
     console.log(`➡️  ${url}`);
-    console.time('Fetch radar');
+    const timerLabel = `Fetch radar ${dt}_${Date.now()}`;
+    console.time(timerLabel);
 
     try {
       // Configure retry limit based on options
@@ -129,7 +130,7 @@ const fetchRadar = (dt, opts = {}) =>
       }
 
       clearTimeout(timeoutId);
-      console.timeEnd('Fetch radar');
+      console.timeEnd(timerLabel);
 
       const { body, headers } = response;
 
@@ -154,7 +155,7 @@ const fetchRadar = (dt, opts = {}) =>
       );
     } catch (e) {
       clearTimeout(timeoutId);
-      console.timeEnd('Fetch radar');
+      console.timeEnd(timerLabel);
 
       if (e.status === 404 || e.message.includes('404')) {
         reject(new Error('Page not found'));
@@ -264,7 +265,8 @@ const cachedOutput = {};
 
 export async function GET(request) {
   console.log('❇️  START');
-  console.time('RESPONSE');
+  const responseTimerLabel = `RESPONSE_${Date.now()}`;
+  console.time(responseTimerLabel);
   try {
     let dt, output;
     const url = new URL(request.url);
@@ -290,6 +292,7 @@ export async function GET(request) {
         };
       }
 
+      console.timeEnd(responseTimerLabel);
       return new Response(JSON.stringify(output), {
         status: 200,
         headers: {
@@ -343,6 +346,7 @@ export async function GET(request) {
         }
       }
 
+      console.timeEnd(responseTimerLabel);
       return new Response(JSON.stringify(output), {
         status: 200,
         headers: {
@@ -353,7 +357,7 @@ export async function GET(request) {
       });
     }
   } catch (e) {
-    console.timeEnd('RESPONSE');
+    console.timeEnd(responseTimerLabel);
     return new Response(JSON.stringify({ error: e.stack || e }), {
       status: 500,
       headers: {
