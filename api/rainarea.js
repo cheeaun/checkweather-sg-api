@@ -40,7 +40,7 @@ const flipAPIURL = () => {
 
 // Helper for retrying fetch with backoff
 async function fetchWithRetry(url, options = {}, retries = 2) {
-  const retryStatusCodes = [404, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524];
+  const retryStatusCodes = [302, 404, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524];
 
   try {
     // Check cache first
