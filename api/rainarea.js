@@ -118,7 +118,7 @@ const fetchRadar = (dt, opts = {}) =>
         );
       } catch (error) {
         // Don't try alternative URL for 302 redirects (image not ready)
-        if (error.status === 302) {
+        if (error.status === 302 && error.isRetryableStatus) {
           throw error;
         }
 
