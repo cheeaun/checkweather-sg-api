@@ -333,12 +333,14 @@ export async function GET(request) {
           }
         }
 
-        const rainareas = convertImageToData(img);
-        output = cachedOutput[dt] = {
-          id: '' + dt,
-          dt,
-          ...rainareas,
-        };
+        if (!output) {
+          const rainareas = convertImageToData(img);
+          output = cachedOutput[dt] = {
+            id: '' + dt,
+            dt,
+            ...rainareas,
+          };
+        }
       } else {
         console.log('🥞', dt);
       }
