@@ -11,17 +11,25 @@ Returns real-time weather data from stations across Singapore.
 
 **Response:**
 ```json
-{
-  "station_id": {
-    "lng": 103.123,
-    "lat": 1.234,
-    "temp_celcius": 28.5,
-    "relative_humidity": 85,
-    "rain_mm": 0.2,
-    "wind_direction": 180,
-    "wind_speed": 5.2
+[
+  {
+    "id": "S109",
+    "lng": 103.8492,
+    "lat": 1.3764,
+    "temp_celcius": 31.2,
+    "relative_humidity": 70.3,
+    "rain_mm": 0.0,
+    "wind_direction": 97,
+    "wind_speed": 7.3
+  },
+  {
+    "id": "S124",
+    "lng": 103.9823,
+    "lat": 1.3678,
+    "wbgt": 28.6,
+    "heat_stress": "low"
   }
-}
+]
 ```
 
 ### `GET /v1/rainarea`

@@ -4,6 +4,7 @@ const apiURLs = {
   relative_humidity: 'https://api-open.data.gov.sg/v2/real-time/api/relative-humidity',
   wind_direction: 'https://api-open.data.gov.sg/v2/real-time/api/wind-direction',
   wind_speed: 'https://api-open.data.gov.sg/v2/real-time/api/wind-speed',
+  wbgt: 'https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt',
 };
 const apiKeys = Object.keys(apiURLs);
 
@@ -54,7 +55,7 @@ const fetchData = async (url) => {
   }
 };
 
-// id, lng, lat, temp_celcius, relative_humidity, rain_mm, wind_direction, wind_speed
+// id, lng, lat, temp_celcius, relative_humidity, rain_mm, wind_direction, wind_speed, wbgt, heat_stress
 
 const getObservations = async () => {
   const climateStations = {};
@@ -68,35 +69,75 @@ const getObservations = async () => {
       return;
     }
     const { body } = result.value;
+    const currentApiKey = apiKeys[i];
 
-    // Handle the actual API structure
-    const stations = body?.data?.stations || [];
-    const readings = body?.data?.readings || [];
+    // Handle WBGT API which has a different structure
+    if (currentApiKey === 'wbgt') {
+      const wbgtReadings = body?.data?.records?.[0]?.item?.readings || [];
 
-    stations.forEach((station) => {
-      if (station?.id && station?.location) {
-        climateStations[station.id] = {
-          lng: station.location?.longitude,
-          lat: station.location?.latitude,
-        };
-      }
-    });
+      wbgtReadings.forEach((reading) => {
+        const stationId = reading?.station?.id;
+        const location = reading?.location;
+        const wbgtValue = reading?.wbgt;
+        const heatStressValue = reading?.heatStress;
 
-    // The readings array contains objects with timestamp and data array
-    readings.forEach((readingGroup) => {
-      const dataPoints = readingGroup?.data || [];
-      dataPoints.forEach((reading) => {
-        if (!reading?.value || !reading?.stationId) return;
-        const roundedValue = Number(reading.value.toFixed(1));
-        if (observations[reading.stationId]) {
-          observations[reading.stationId][apiKeys[i]] = roundedValue;
+        if (!stationId || !location) return;
+
+        // Add station info
+        if (location?.longitude && location?.latitude) {
+          climateStations[stationId] = {
+            lng: parseFloat(location.longitude),
+            lat: parseFloat(location.latitude),
+          };
+        }
+
+        // Add readings for both wbgt and heat_stress from the single API call
+        const stationData = {};
+
+        if (wbgtValue !== undefined) {
+          stationData.wbgt = parseFloat(wbgtValue);
+        }
+
+        if (heatStressValue !== undefined) {
+          stationData.heat_stress = heatStressValue.toLowerCase();
+        }
+
+        if (observations[stationId]) {
+          Object.assign(observations[stationId], stationData);
         } else {
-          observations[reading.stationId] = {
-            [apiKeys[i]]: roundedValue,
+          observations[stationId] = stationData;
+        }
+      });
+    } else {
+      // Handle the standard API structure for other weather data
+      const stations = body?.data?.stations || [];
+      const readings = body?.data?.readings || [];
+
+      stations.forEach((station) => {
+        if (station?.id && station?.location) {
+          climateStations[station.id] = {
+            lng: station.location?.longitude,
+            lat: station.location?.latitude,
           };
         }
       });
-    });
+
+      // The readings array contains objects with timestamp and data array
+      readings.forEach((readingGroup) => {
+        const dataPoints = readingGroup?.data || [];
+        dataPoints.forEach((reading) => {
+          if (!reading?.value || !reading?.stationId) return;
+          const roundedValue = Number(reading.value.toFixed(1));
+          if (observations[reading.stationId]) {
+            observations[reading.stationId][currentApiKey] = roundedValue;
+          } else {
+            observations[reading.stationId] = {
+              [currentApiKey]: roundedValue,
+            };
+          }
+        });
+      });
+    }
   });
 
   const obs = Object.entries(observations).map(([stationID, observation]) => {
