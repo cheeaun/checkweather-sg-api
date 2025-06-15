@@ -353,6 +353,7 @@ export async function GET(request) {
       });
     }
   } catch (e) {
+    console.error(e);
     return new Response(JSON.stringify({ error: e.stack || e }), {
       status: 500,
       headers: {
