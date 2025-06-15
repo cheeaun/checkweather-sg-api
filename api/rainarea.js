@@ -26,17 +26,10 @@ const shortenPercentage = (percentage) => +percentage.toFixed(2);
 // Simple in-memory cache (note: this will be reset between function invocations)
 const requestCache = new Map();
 
-let urlIndex = 0;
-const apiURL = (dt) => {
-  const url = [
-    `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${dt}0000dBR.dpsri.png`,
-    `https://www.nea.gov.sg/docs/default-source/rain-area/dpsri_70km_${dt}0000dBR.dpsri.png`,
-  ][urlIndex];
-  return url;
-};
-const flipAPIURL = () => {
-  urlIndex = [1, 0][urlIndex];
-};
+const apiURLs = [
+  (dt) => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${dt}0000dBR.dpsri.png`,
+  (dt) => `https://www.nea.gov.sg/docs/default-source/rain-area/dpsri_70km_${dt}0000dBR.dpsri.png`,
+];
 
 // Helper for retrying fetch with backoff
 const retryStatusCodes = [302, 404, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524];
@@ -90,40 +83,65 @@ const fetchRadar = (dt, opts = {}) =>
       controller.abort();
     }, 3000); // 3 second timeout
 
-    console.log('🥏 Fetch', dt);
-    let url = apiURL(dt);
-    console.log(`➡️ ${url}`);
+    console.log('🥏', dt);
 
     try {
-      // Configure retry limit based on options
-      const retryLimit = opts.retry?.limit !== undefined ? opts.retry.limit : 2;
+      const concurrent = opts.concurrent || false;
 
       let response;
-      try {
-        response = await fetchWithRetry(
-          url,
-          {
-            signal: controller.signal,
-            headers: { 'user-agent': undefined },
-            redirect: 'manual' // Similar to maxRedirects: 1
-          },
-          retryLimit
-        );
-      } catch (error) {
-        // Try alternative URL if first one fails
-        flipAPIURL();
-        url = apiURL(dt);
-        console.log(`↔️ ${url}`);
+      let url;
 
-        response = await fetchWithRetry(
-          url,
-          {
-            signal: controller.signal,
-            headers: { 'user-agent': undefined },
-            redirect: 'manual'
-          },
-          retryLimit
-        );
+      if (concurrent) {
+        // Race both URLs simultaneously (no retries)
+        const url1 = apiURLs[0](dt);
+        const url2 = apiURLs[1](dt);
+
+        const fetchOptions = {
+          signal: controller.signal,
+          headers: { 'user-agent': undefined },
+          redirect: 'manual'
+        };
+
+        const raceResult = await Promise.any([
+          fetchWithRetry(url1, fetchOptions, 0).then(res => ({ response: res, url: url1 })),
+          fetchWithRetry(url2, fetchOptions, 0).then(res => ({ response: res, url: url2 }))
+        ]);
+
+        response = raceResult.response;
+        url = raceResult.url;
+        console.log(`🥇 ${url}`);
+      } else {
+        // Sequential with retries
+        const retryLimit = opts.retry !== undefined ? opts.retry : 0;
+
+        // Try first URL (index 0)
+        try {
+          url = apiURLs[0](dt);
+          console.log(`➡️ ${url}`);
+          response = await fetchWithRetry(
+            url,
+            {
+              signal: controller.signal,
+              headers: { 'user-agent': undefined },
+              redirect: 'manual' // Similar to maxRedirects: 1
+            },
+            retryLimit
+          );
+        } catch (error) {
+          // Try second URL (index 1) if first one fails
+          url = apiURLs[1](dt);
+          console.log(`↔️ ${url}`);
+
+          response = await fetchWithRetry(
+            url,
+            {
+              signal: controller.signal,
+              headers: { 'user-agent': undefined },
+              redirect: 'manual'
+            },
+            retryLimit
+          );
+        }
       }
 
       clearTimeout(timeoutId);
@@ -158,7 +176,6 @@ const fetchRadar = (dt, opts = {}) =>
         });
         reject(e);
       }
-      flipAPIURL();
     }
   });
 
@@ -254,7 +271,7 @@ const convertImageToData = (img) => {
 const cachedOutput = {};
 
 export async function GET(request) {
-  console.log('❇️  START');
+  console.log('❇️ START');
   try {
     let dt, output;
     const url = new URL(request.url);
@@ -264,7 +281,7 @@ export async function GET(request) {
       dt = +queryDt;
       output = cachedOutput[dt];
       if (!output) {
-        const img = await fetchRadar(dt, { retry: { limit: 0 } });
+        const img = await fetchRadar(dt, { retry: 2 });
         if (!img) {
           throw new Error(`Timeout: ${dt}`);
         }
@@ -274,6 +291,8 @@ export async function GET(request) {
           dt,
           ...rainareas,
         };
+      } else {
+        console.log('🥞', dt);
       }
 
       return new Response(JSON.stringify(output), {
@@ -301,9 +320,12 @@ export async function GET(request) {
             dt = datetimeStr(i * -5);
             console.log('⌛ Step back', dt);
             output = cachedOutput[dt];
-            if (output) break;
+            if (output) {
+              console.log('🥞', dt);
+              break;
+            }
             try {
-              img = await fetchRadar(dt, { retry: { limit: 0 } });
+              img = await fetchRadar(dt, { concurrent: true });
               if (img) break;
             } catch (e) {
               console.log('⌛⚠️', e.message);
@@ -317,6 +339,8 @@ export async function GET(request) {
           dt,
           ...rainareas,
         };
+      } else {
+        console.log('🥞', dt);
       }
 
       return new Response(JSON.stringify(output), {
