@@ -1,24 +1,3 @@
-// Simple in-memory cache - just store the previous request
-let lastCache = null;
-
-// Have to be X minutes in the past, else it's too recent and lack of data
-export const datetime = () => {
-  // Get current time
-  const now = new Date();
-
-  // Convert to Singapore timezone (UTC+8)
-  const singaporeOffset = 8 * 60; // Singapore is UTC+8 in minutes
-  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000); // Convert to UTC
-  const singaporeTime = new Date(utcTime + (singaporeOffset * 60000)); // Convert to Singapore time
-
-  // Subtract 10 minutes and set seconds to 0
-  const pastTime = new Date(singaporeTime.getTime() - 10 * 60 * 1000);
-  pastTime.setSeconds(0, 0);
-
-  // Format as ISO string and remove milliseconds and Z suffix
-  return pastTime.toISOString().replace(/\..*$/, '');
-};
-
 const apiURLs = {
   temp_celcius: 'https://api-open.data.gov.sg/v2/real-time/api/air-temperature',
   rain_mm: 'https://api-open.data.gov.sg/v2/real-time/api/rainfall',
@@ -28,22 +7,16 @@ const apiURLs = {
 };
 const apiKeys = Object.keys(apiURLs);
 
-const fetchData = async (url, dt) => {
-  const fullUrl = `${url}?date_time=${dt}`;
+let lastCache = {};
 
-  // Check if we have cached data for this exact request
-  if (lastCache && lastCache.key === fullUrl) {
-    console.log(`🥞 Cache hit: ${fullUrl}`);
-    return lastCache.result;
-  }
-
-  console.log(`➡️ ${fullUrl}`);
+const fetchData = async (url) => {
+  console.log(`➡️ ${url}`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
 
   try {
-    const response = await fetch(fullUrl, {
+    const response = await fetch(url, {
       signal: controller.signal,
       redirect: 'manual', // Handle redirects manually (maxRedirects: 1 equivalent)
       headers: {
@@ -60,13 +33,24 @@ const fetchData = async (url, dt) => {
     const body = await response.json();
     const result = { body };
 
-    // Cache this result
-    lastCache = { key: fullUrl, result };
+    lastCache[url] = result;
 
+    const readings = body?.data?.readings || [];
+    const timestamps = readings.map(reading => reading?.timestamp).filter(Boolean);
+    const timestampInfo = timestamps.length > 0 ? ` (${timestamps.join(', ')})` : '';
+
+    console.log(`✅ ${url}${timestampInfo}`);
     return result;
   } catch (error) {
     clearTimeout(timeoutId);
-    throw error;
+
+    if (lastCache[url]) {
+      console.log(`🥞 ${url}`);
+      return lastCache[url];
+    }
+
+    console.log(`❌ ${url}`);
+    return {};
   }
 };
 
@@ -75,33 +59,34 @@ const fetchData = async (url, dt) => {
 const getObservations = async () => {
   const climateStations = {};
   const observations = {};
-  const dt = datetime();
-  const apiFetches = Object.values(apiURLs).map((url) => fetchData(url, dt));
+
+  const apiFetches = Object.values(apiURLs).map(fetchData);
   const results = await Promise.allSettled(apiFetches);
   results.forEach((result, i) => {
     if (result.status !== 'fulfilled') {
-      console.log('API fetch failed:', apiKeys[i]);
+      console.log('Unexpected error for:', apiKeys[i], result.reason);
       return;
     }
     const { body } = result.value;
 
     // Handle the actual API structure
-    const responseData = body.data || body;
-    const stations = responseData.stations || [];
-    const readings = responseData.readings || [];
+    const stations = body?.data?.stations || [];
+    const readings = body?.data?.readings || [];
 
     stations.forEach((station) => {
-      climateStations[station.id] = {
-        lng: station.location.longitude,
-        lat: station.location.latitude,
-      };
+      if (station?.id && station?.location) {
+        climateStations[station.id] = {
+          lng: station.location?.longitude,
+          lat: station.location?.latitude,
+        };
+      }
     });
 
     // The readings array contains objects with timestamp and data array
     readings.forEach((readingGroup) => {
-      const dataPoints = readingGroup.data || [];
+      const dataPoints = readingGroup?.data || [];
       dataPoints.forEach((reading) => {
-        if (!reading.value) return;
+        if (!reading?.value || !reading?.stationId) return;
         const roundedValue = Number(reading.value.toFixed(1));
         if (observations[reading.stationId]) {
           observations[reading.stationId][apiKeys[i]] = roundedValue;
@@ -115,13 +100,14 @@ const getObservations = async () => {
   });
 
   const obs = Object.entries(observations).map(([stationID, observation]) => {
+    const station = climateStations[stationID];
     return {
       id: stationID,
-      lng: +climateStations[stationID].lng.toFixed(4),
-      lat: +climateStations[stationID].lat.toFixed(4),
+      lng: station?.lng ? +station.lng.toFixed(4) : undefined,
+      lat: station?.lat ? +station.lat.toFixed(4) : undefined,
       ...observation,
     };
-  });
+  }).filter(obs => obs.lng !== undefined && obs.lat !== undefined);
 
   return obs;
 };
