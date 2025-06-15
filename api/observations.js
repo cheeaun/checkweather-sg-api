@@ -1,3 +1,6 @@
+// Simple in-memory cache - just store the previous request
+let lastCache = null;
+
 // Have to be X minutes in the past, else it's too recent and lack of data
 export const datetime = () => {
   // Get current time
@@ -25,15 +28,22 @@ const apiURLs = {
 };
 const apiKeys = Object.keys(apiURLs);
 
-const fetchData = async (url) => {
-  const u = `${url}?date_time=${datetime()}`;
-  console.log(`Fetching ${u}`);
+const fetchData = async (url, dt) => {
+  const fullUrl = `${url}?date_time=${dt}`;
+
+  // Check if we have cached data for this exact request
+  if (lastCache && lastCache.key === fullUrl) {
+    console.log(`🥞 Cache hit: ${fullUrl}`);
+    return lastCache.result;
+  }
+
+  console.log(`➡️ ${fullUrl}`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
 
   try {
-    const response = await fetch(u, {
+    const response = await fetch(fullUrl, {
       signal: controller.signal,
       redirect: 'manual', // Handle redirects manually (maxRedirects: 1 equivalent)
       headers: {
@@ -48,7 +58,12 @@ const fetchData = async (url) => {
     }
 
     const body = await response.json();
-    return { body };
+    const result = { body };
+
+    // Cache this result
+    lastCache = { key: fullUrl, result };
+
+    return result;
   } catch (error) {
     clearTimeout(timeoutId);
     throw error;
@@ -60,7 +75,8 @@ const fetchData = async (url) => {
 const getObservations = async () => {
   const climateStations = {};
   const observations = {};
-  const apiFetches = Object.values(apiURLs).map((url) => fetchData(url));
+  const dt = datetime();
+  const apiFetches = Object.values(apiURLs).map((url) => fetchData(url, dt));
   const results = await Promise.allSettled(apiFetches);
   results.forEach((result, i) => {
     if (result.status !== 'fulfilled') {
