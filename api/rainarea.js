@@ -304,26 +304,19 @@ export async function GET(request) {
             if (output) break;
             try {
               img = await fetchRadar(dt, { retry: { limit: 0 } });
-              if (!img) {
-                throw new Error(`Timeout: ${dt}`);
-              }
-              break;
-            } catch (e) {}
+              if (img) break;
+            } catch (e) {
+              console.log('⌛⚠️', e.message);
+            }
           }
         }
 
-        if (!output && img) {
-          const rainareas = convertImageToData(img);
-          output = cachedOutput[dt] = {
-            id: '' + dt,
-            dt,
-            ...rainareas,
-          };
-        }
-
-        if (!output) {
-          throw new Error(`Failed to fetch radar data for ${dt}`);
-        }
+        const rainareas = convertImageToData(img);
+        output = cachedOutput[dt] = {
+          id: '' + dt,
+          dt,
+          ...rainareas,
+        };
       }
 
       return new Response(JSON.stringify(output), {
