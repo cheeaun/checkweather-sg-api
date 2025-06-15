@@ -39,9 +39,8 @@ const flipAPIURL = () => {
 };
 
 // Helper for retrying fetch with backoff
+const retryStatusCodes = [302, 404, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524];
 async function fetchWithRetry(url, options = {}, retries = 2) {
-  const retryStatusCodes = [302, 404, 408, 413, 429, 500, 502, 503, 504, 521, 522, 524];
-
   try {
     // Check cache first
     if (requestCache.has(url)) {
@@ -56,8 +55,8 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 
     if (!response.ok) {
       if (retries > 0 && retryStatusCodes.includes(response.status)) {
-        console.log(`Retrying due to status ${response.status}, ${retries} retries left`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
+      console.log(`♻️ Retry: ${response.status}, ${retries} left`);
+        await new Promise(resolve => setTimeout(resolve,500)); // .5s delay
         return fetchWithRetry(url, options, retries - 1);
       }
       throw new Error(`HTTP error: ${response.status}`);
@@ -77,8 +76,8 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
     };
   } catch (error) {
     if (retries > 0 && error.name !== 'AbortError') {
-      console.log(`Retrying due to error: ${error.message}, ${retries} retries left`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
+      console.log(`♻️ Retry: ${error.message}, ${retries} left`);
+      await new Promise(resolve => setTimeout(resolve, 500)); // .5s delay
       return fetchWithRetry(url, options, retries - 1);
     }
     throw error;
@@ -89,13 +88,11 @@ const fetchRadar = (dt, opts = {}) =>
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 5000); // 5 second timeout
+    }, 3000); // 3 second timeout
 
-    console.log(`Fetch: ${dt}`);
+    console.log('🥏 Fetch', dt);
     let url = apiURL(dt);
-    console.log(`➡️  ${url}`);
-    const timerLabel = `Fetch radar ${dt}_${Date.now()}`;
-    console.time(timerLabel);
+    console.log(`➡️ ${url}`);
 
     try {
       // Configure retry limit based on options
@@ -116,7 +113,7 @@ const fetchRadar = (dt, opts = {}) =>
         // Try alternative URL if first one fails
         flipAPIURL();
         url = apiURL(dt);
-        console.log(`Trying alternative URL: ${url}`);
+        console.log(`↔️ ${url}`);
 
         response = await fetchWithRetry(
           url,
@@ -130,7 +127,6 @@ const fetchRadar = (dt, opts = {}) =>
       }
 
       clearTimeout(timeoutId);
-      console.timeEnd(timerLabel);
 
       const { body, headers } = response;
 
@@ -140,7 +136,6 @@ const fetchRadar = (dt, opts = {}) =>
         return;
       }
 
-      console.time('Decode PNG');
       new PNG({ filterType: 4, checkCRC: false }).parse(
         body,
         function (error, data) {
@@ -149,12 +144,10 @@ const fetchRadar = (dt, opts = {}) =>
             return;
           }
           resolve(data);
-          console.timeEnd('Decode PNG');
         }
       );
     } catch (e) {
       clearTimeout(timeoutId);
-      console.timeEnd(timerLabel);
 
       if (e.status === 404 || e.message.includes('404')) {
         reject(new Error('Page not found'));
@@ -258,14 +251,10 @@ const convertImageToData = (img) => {
   };
 };
 
-const timeoutPromise = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const cachedOutput = {};
 
 export async function GET(request) {
   console.log('❇️  START');
-  const responseTimerLabel = `RESPONSE_${Date.now()}`;
-  console.time(responseTimerLabel);
   try {
     let dt, output;
     const url = new URL(request.url);
@@ -275,11 +264,7 @@ export async function GET(request) {
       dt = +queryDt;
       output = cachedOutput[dt];
       if (!output) {
-        // const img = await fetchRadar(dt, { retry: { limit: 0 } });
-        const img = await Promise.race([
-          fetchRadar(dt, { retry: { limit: 0 } }),
-          timeoutPromise(5 * 1000),
-        ]);
+        const img = await fetchRadar(dt, { retry: { limit: 0 } });
         if (!img) {
           throw new Error(`Timeout: ${dt}`);
         }
@@ -291,7 +276,6 @@ export async function GET(request) {
         };
       }
 
-      console.timeEnd(responseTimerLabel);
       return new Response(JSON.stringify(output), {
         status: 200,
         headers: {
@@ -307,11 +291,7 @@ export async function GET(request) {
       if (!output) {
         let img;
         try {
-          // img = await fetchRadar(dt);
-          img = await Promise.race([
-            fetchRadar(dt),
-            timeoutPromise(5 * 1000),
-          ]);
+          img = await fetchRadar(dt);
           if (!img) {
             throw new Error(`Timeout: ${dt}`);
           }
@@ -319,15 +299,11 @@ export async function GET(request) {
           for (let i = 1; i <= 5; i++) {
             // Step back 5 minutes every time
             dt = datetimeStr(i * -5);
-            console.log('Retry with older image', dt);
+            console.log('⌛ Step back', dt);
             output = cachedOutput[dt];
             if (output) break;
             try {
-              // img = await fetchRadar(dt, { retry: { limit: 0 } });
-              img = await Promise.race([
-                fetchRadar(dt, { retry: { limit: 0 } }),
-                timeoutPromise(5 * 1000),
-              ]);
+              img = await fetchRadar(dt, { retry: { limit: 0 } });
               if (!img) {
                 throw new Error(`Timeout: ${dt}`);
               }
@@ -350,7 +326,6 @@ export async function GET(request) {
         }
       }
 
-      console.timeEnd(responseTimerLabel);
       return new Response(JSON.stringify(output), {
         status: 200,
         headers: {
@@ -361,7 +336,6 @@ export async function GET(request) {
       });
     }
   } catch (e) {
-    console.timeEnd(responseTimerLabel);
     return new Response(JSON.stringify({ error: e.stack || e }), {
       status: 500,
       headers: {
