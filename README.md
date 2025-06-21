@@ -14,6 +14,7 @@ Returns real-time weather data from stations across Singapore.
 [
   {
     "id": "S109",
+    "name": "Ang Mo Kio Avenue 5",
     "lng": 103.8492,
     "lat": 1.3764,
     "temp_celcius": 31.2,
@@ -24,6 +25,7 @@ Returns real-time weather data from stations across Singapore.
   },
   {
     "id": "S124",
+    "name": "Upper Changi Road North",
     "lng": 103.9823,
     "lat": 1.3678,
     "wbgt": 28.6,

@@ -55,7 +55,7 @@ const fetchData = async (url) => {
   }
 };
 
-// id, lng, lat, temp_celcius, relative_humidity, rain_mm, wind_direction, wind_speed, wbgt, heat_stress
+// id, name, lng, lat, temp_celcius, relative_humidity, rain_mm, wind_direction, wind_speed, wbgt, heat_stress
 
 const getObservations = async () => {
   const climateStations = {};
@@ -88,6 +88,7 @@ const getObservations = async () => {
           climateStations[stationId] = {
             lng: parseFloat(location.longitude),
             lat: parseFloat(location.latitude),
+            name: reading?.station?.name,
           };
         }
 
@@ -118,6 +119,7 @@ const getObservations = async () => {
           climateStations[station.id] = {
             lng: station.location?.longitude,
             lat: station.location?.latitude,
+            name: station?.name,
           };
         }
       });
@@ -144,6 +146,7 @@ const getObservations = async () => {
     const station = climateStations[stationID];
     return {
       id: stationID,
+      name: station?.name,
       lng: station?.lng ? +station.lng.toFixed(4) : undefined,
       lat: station?.lat ? +station.lat.toFixed(4) : undefined,
       ...observation,
