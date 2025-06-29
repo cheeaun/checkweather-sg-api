@@ -315,7 +315,7 @@ export async function GET(request) {
             throw new Error(`Timeout: ${dt}`);
           }
         } catch (e) {
-          for (let i = 1; i <= 5; i++) {
+          for (let i = 1; i <= 12; i++) {
             // Step back 5 minutes every time
             dt = datetimeStr(i * -5);
             console.log('⌛ Step back', dt);
