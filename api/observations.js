@@ -1,17 +1,21 @@
 const apiURLs = {
   temp_celcius: 'https://api-open.data.gov.sg/v2/real-time/api/air-temperature',
   rain_mm: 'https://api-open.data.gov.sg/v2/real-time/api/rainfall',
-  relative_humidity: 'https://api-open.data.gov.sg/v2/real-time/api/relative-humidity',
-  wind_direction: 'https://api-open.data.gov.sg/v2/real-time/api/wind-direction',
+  relative_humidity:
+    'https://api-open.data.gov.sg/v2/real-time/api/relative-humidity',
+  wind_direction:
+    'https://api-open.data.gov.sg/v2/real-time/api/wind-direction',
   wind_speed: 'https://api-open.data.gov.sg/v2/real-time/api/wind-speed',
   wbgt: 'https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt',
 };
 const apiKeys = Object.keys(apiURLs);
 
+const API_KEY = process.env.API_KEY;
+
 let lastCache = {};
 
 const fetchData = async (url) => {
-  console.log(`➡️ ${url}`);
+  console.log(`➡️ ${url}${API_KEY ? ' (with API key)' : ''}`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
@@ -21,8 +25,9 @@ const fetchData = async (url) => {
       signal: controller.signal,
       redirect: 'manual', // Handle redirects manually (maxRedirects: 1 equivalent)
       headers: {
-        'User-Agent': 'checkweather-sg-api'
-      }
+        'User-Agent': 'checkweather-sg-api',
+        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+      },
     });
 
     clearTimeout(timeoutId);
@@ -37,8 +42,11 @@ const fetchData = async (url) => {
     lastCache[url] = result;
 
     const readings = body?.data?.readings || [];
-    const timestamps = readings.map(reading => reading?.timestamp).filter(Boolean);
-    const timestampInfo = timestamps.length > 0 ? ` (${timestamps.join(', ')})` : '';
+    const timestamps = readings
+      .map((reading) => reading?.timestamp)
+      .filter(Boolean);
+    const timestampInfo =
+      timestamps.length > 0 ? ` (${timestamps.join(', ')})` : '';
 
     console.log(`✅ ${url}${timestampInfo}`);
     return result;
@@ -142,16 +150,18 @@ const getObservations = async () => {
     }
   });
 
-  const obs = Object.entries(observations).map(([stationID, observation]) => {
-    const station = climateStations[stationID];
-    return {
-      id: stationID,
-      name: station?.name,
-      lng: station?.lng ? +station.lng.toFixed(4) : undefined,
-      lat: station?.lat ? +station.lat.toFixed(4) : undefined,
-      ...observation,
-    };
-  }).filter(obs => obs.lng !== undefined && obs.lat !== undefined);
+  const obs = Object.entries(observations)
+    .map(([stationID, observation]) => {
+      const station = climateStations[stationID];
+      return {
+        id: stationID,
+        name: station?.name,
+        lng: station?.lng ? +station.lng.toFixed(4) : undefined,
+        lat: station?.lat ? +station.lat.toFixed(4) : undefined,
+        ...observation,
+      };
+    })
+    .filter((obs) => obs.lng !== undefined && obs.lat !== undefined);
 
   return obs;
 };

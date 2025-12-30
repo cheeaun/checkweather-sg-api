@@ -63,8 +63,21 @@ npm start    # Vercel dev server at localhost:3000
 npm test     # Run test suite
 ```
 
+### API Key
+
+Set your data.gov.sg API key in the environment as `API_KEY`. Read more from [data.gov.sg guide](https://guide.data.gov.sg/).
+
+For local development, add `.env.local` (not committed):
+
+```dotenv
+API_KEY=[YOUR_DATA_GOV_SG_API_KEY]
+```
+
+Requests will include the `x-api-key` header automatically when `API_KEY` is present.
+
 ## Copyright/License
 
+- Data © [data.gov.sg](https://data.gov.sg/open-data-licence)
 - Rain area radar images © [Meteorological Service Singapore](http://www.weather.gov.sg/) © [National Environment Agency](http://www.nea.gov.sg/)
 - [Singapore region boundary](https://data.gov.sg/dataset/master-plan-2014-region-boundary-web), under [Singapore Open Data License](https://data.gov.sg/open-data-licence)
 - Code under [MIT](https://cheeaun.mit-license.org/).
