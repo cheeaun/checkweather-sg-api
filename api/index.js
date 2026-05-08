@@ -4,7 +4,8 @@ export async function GET(request) {
     version: "0.1.0",
     endpoints: [
       "/v1/observations",
-      "/v1/rainarea"
+      "/v1/rainarea",
+      "/v1/forecast"
     ]
   };
 

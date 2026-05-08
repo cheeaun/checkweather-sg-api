@@ -23,6 +23,10 @@
     {
       "source": "/v1/observations",
       "destination": "/api/observations"
+    },
+    {
+      "source": "/v1/forecast",
+      "destination": "/api/forecast"
     }
   ]
 }
