@@ -41,7 +41,7 @@ export async function GET(request) {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=120, s-maxage=120',
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
       },
     });
   } catch (e) {
